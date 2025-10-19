@@ -1,6 +1,6 @@
 import graphene
 
-class Query(CRMQuery, graphene.ObjectType):
+class Query(graphene.ObjectType):
     """
     Defines all root query fields available in the API.
     """
