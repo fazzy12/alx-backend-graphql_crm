@@ -9,35 +9,77 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal
 
 from graphene_django.types import DjangoObjectType
+from graphene_django.filter import DjangoFilterConnectionField
 
 from .models import Customer, Product, Order
+from .filters import CustomerFilter, ProductFilter, OrderFilter
 
-# --- TYPES ---
+# --- TYPES & CONNECTIONS ---
 
 class CustomerType(DjangoObjectType):
+    created_at = graphene.DateTime()
+    
     class Meta:
         model = Customer
-        fields = ('id', 'name', 'email', 'phone', 'orders')
+        fields = ('id', 'name', 'email', 'phone', 'created_at', 'orders') 
+        interfaces = (graphene.Node,)
+        filter_fields = ()
+
+class CustomerConnection(graphene.relay.Connection):
+    class Meta:
+        node = CustomerType
 
 class ProductType(DjangoObjectType):
     class Meta:
         model = Product
         fields = ('id', 'name', 'price', 'stock')
+        interfaces = (graphene.Node,)
+        filter_fields = ()
+
+class ProductConnection(graphene.relay.Connection):
+    class Meta:
+        node = ProductType
 
 class OrderType(DjangoObjectType):
     class Meta:
         model = Order
         fields = ('id', 'customer', 'products', 'total_amount', 'order_date')
+        interfaces = (graphene.Node,) # <--- FIX 1: Use graphene.Node directly
+        filter_fields = ()
+
+class OrderConnection(graphene.relay.Connection):
+    class Meta:
+        node = OrderType
 
 # --- QUERY (CRM-specific) ---
 
 class Query(graphene.ObjectType):
-    """Defines all CRM-specific root query fields."""
-    all_customers = graphene.List(CustomerType)
+    """Defines all CRM-specific root query fields, using connections for filtering/ordering."""
+    
+    all_customers = DjangoFilterConnectionField(
+        CustomerType,
+        filterset_class=CustomerFilter,
+        description="List of customers with filtering options."
+    )
+
+    all_products = DjangoFilterConnectionField(
+        ProductType,
+        filterset_class=ProductFilter,
+        description="List of products with filtering options."
+    )
+
+    all_orders = DjangoFilterConnectionField(
+        OrderType,
+        filterset_class=OrderFilter,
+        description="List of orders with filtering options."
+    )
+    
+    # Node field for fetching by global ID
+    node = graphene.Node.Field()
+    
+    # Single object query
     customer = graphene.Field(CustomerType, id=graphene.ID())
 
-    def resolve_all_customers(root, info):
-        return Customer.objects.all()
 
     def resolve_customer(root, info, id):
         try:
@@ -53,7 +95,6 @@ def validate_phone(phone):
     if phone and not phone_regex.match(phone):
         raise ValidationError("Invalid phone number format. Please use a valid format (e.g., +1234567890 or 123-456-7890).")
 
-# --- MUTATION INPUTS (Only for complex/list data) ---
 
 class BulkCustomerInput(graphene.InputObjectType):
     name = graphene.String(required=True)
@@ -64,7 +105,6 @@ class OrderInput(graphene.InputObjectType):
     customer_id = graphene.ID(required=True)
     product_ids = graphene.List(graphene.ID, required=True)
 
-# --- MUTATIONS ---
 
 # 1. CreateCustomer
 class CreateCustomer(graphene.Mutation):
@@ -79,14 +119,9 @@ class CreateCustomer(graphene.Mutation):
     @classmethod
     def mutate(cls, root, info, name, email, phone=None):
         try:
-            # Email format validation
             validate_email(email)
-
-            # Email uniqueness validation
             if Customer.objects.filter(email=email).exists():
                 raise ValidationError("Email already exists.")
-
-            # Phone format validation
             if phone:
                 validate_phone(phone)
 
@@ -122,7 +157,6 @@ class BulkCreateCustomers(graphene.Mutation):
             phone = customer_data.get('phone')
 
             try:
-                # Basic validation
                 validate_email(email)
 
                 if email in emails_in_batch:
@@ -130,11 +164,9 @@ class BulkCreateCustomers(graphene.Mutation):
                     error_msg = "Email already exists in database." if db_exists else "Duplicate email in current batch."
                     raise ValidationError(error_msg)
 
-                # Phone validation
                 if phone:
                     validate_phone(phone)
                 
-
                 emails_in_batch.add(email)
 
                 customer = Customer(
@@ -142,7 +174,7 @@ class BulkCreateCustomers(graphene.Mutation):
                     email=email,
                     phone=phone if phone else None
                 )
-                customer.save() # <--- Explicit .save()
+                customer.save()
                 successful_customers.append(customer)
 
             except ValidationError as e:
@@ -173,7 +205,6 @@ class CreateProduct(graphene.Mutation):
 
         price_decimal = Decimal(str(price))
 
-        # Validation
         if price_decimal <= 0:
             raise Exception("Validation Error: Price must be a positive number.")
         if stock < 0:
