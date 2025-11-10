@@ -1,1 +1,1 @@
-[2025-11-10T23:23:23.471032+00:00] Deleted 2 inactive customers.
+0 2 * * 0 /path/to/alx-backend-graphqlcrm/crm/cronjobs/cleaninactivecustomers.sh
