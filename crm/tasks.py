@@ -4,7 +4,8 @@ from django.utils import timezone
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 from decimal import Decimal
-
+from datetime import datetime
+import requests
 
 GRAPHQL_ENDPOINT = "http://localhost:8000/graphql"
 
