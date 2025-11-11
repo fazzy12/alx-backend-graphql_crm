@@ -7,6 +7,7 @@ from django.db.models import Sum
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from decimal import Decimal
+from django.db.models import Sum, F
 
 from graphene_django.types import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
@@ -259,6 +260,48 @@ class CreateOrder(graphene.Mutation):
         order.products.set(products)
 
         return CreateOrder(order=order)
+    
+
+class UpdatedProductType(DjangoObjectType):
+    """A minimal type for returning updated products."""
+    class Meta:
+        model = Product
+        fields = ('id', 'name', 'stock')
+        interfaces = (graphene.Node,)
+        filter_fields = ()
+
+class UpdateLowStockProducts(graphene.Mutation):
+    """
+    Restocks products where stock is less than 10 by incrementing stock by 10.
+    """
+    updated_products = graphene.List(UpdatedProductType)
+    message = graphene.String()
+
+    @classmethod
+    @transaction.atomic
+    def mutate(cls, root, info):
+        LOW_STOCK_THRESHOLD = 10
+        RESTOCK_AMOUNT = 10
+
+
+        low_stock_products_ids = Product.objects.filter(stock__lt=LOW_STOCK_THRESHOLD).values_list('id', flat=True)
+
+        if not low_stock_products_ids:
+            return UpdateLowStockProducts(
+                updated_products=[], 
+                message="No low-stock products found to update."
+            )
+
+
+        Product.objects.filter(id__in=low_stock_products_ids).update(stock=F('stock') + RESTOCK_AMOUNT)
+
+        updated_products = Product.objects.filter(id__in=low_stock_products_ids)
+        product_names = ', '.join([p.name for p in updated_products])
+
+        return UpdateLowStockProducts(
+            updated_products=updated_products,
+            message=f"Successfully restocked {len(updated_products)} products: {product_names} (Stock +{RESTOCK_AMOUNT})."
+        )
 
 
 # --- ROOT MUTATION ---
@@ -268,3 +311,4 @@ class Mutation(graphene.ObjectType):
     bulk_create_customers = BulkCreateCustomers.Field()
     create_product = CreateProduct.Field()
     create_order = CreateOrder.Field()
+    update_low_stock_products = UpdateLowStockProducts.Field()
