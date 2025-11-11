@@ -8,6 +8,7 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 from django.db.models import Sum, F
+from crm.models import Product
 
 from graphene_django.types import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
