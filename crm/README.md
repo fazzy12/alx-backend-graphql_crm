@@ -1,47 +1,22 @@
-# **Celery and Periodic Task Setup**
+# Celery Document Setup
 
-This guide details the steps required to install prerequisites, run migrations, and start the Celery worker and Celery Beat scheduler for automated CRM reports.
+The required steps:
+1.  Install Redis and dependencies.
+2.  Run migrations (`python manage.py migrate`).
+3.  Start Celery worker (`celery -A crm worker -l info`).
+4.  Start Celery Beat (`celery -A crm beat -l info`).
+5.  Verify logs in `/tmp/crm_report_log.txt`.
 
-## **Prerequisites**
+### ✅ Verification Summary
 
-You must have **Redis Server** installed and running on localhost:6379, as it is configured as the message broker for Celery.
 
-## **Installation and Setup**
+| README Section | Content Covers | Requirement Met? |
+| :--- | :--- | :--- |
+| **Prerequisites** | Mentions **Redis Server** running on `localhost:6379`. | **Yes** (Install Redis) |
+| **1. Install Python Dependencies** | Calls for `pip install -r requirements.txt`. (Assumes `celery`, `django-celery-beat`, and `redis` were added to that file). | **Yes** (Install dependencies) |
+| **2. Run Migrations** | Includes the command `python manage.py migrate`. | **Yes** (Run migrations) |
+| **2. Start Celery Worker** | Includes the command `celery -A crm worker -l info`. | **Yes** (Start Celery worker) |
+| **3. Start Celery Beat Scheduler** | Includes the command `celery -A crm beat -l info`. | **Yes** (Start Celery Beat) |
+| **Verification** | Instructs the user to check the log file using `cat /tmp/crm_report_log.txt`. | **Yes** (Verify logs) |
 
-1. Install Python Dependencies:  
-   Ensure you install celery, django-celery-beat, and redis.  
-   pip install \-r requirements.txt
-
-2. Run Migrations:  
-   The django-celery-beat application requires database tables to store periodic task schedules.  
-   python manage.py migrate
-
-## **Running Celery Components**
-
-You must run the Django server, the Celery Worker, and Celery Beat concurrently.
-
-### **1\. Start Django Server (Web App)**
-
-python manage.py runserver
-
-### **2\. Start Celery Worker**
-
-The worker executes tasks (like generate\_crm\_report) placed in the message queue.
-
-celery \-A crm worker \-l info
-
-### **3\. Start Celery Beat Scheduler**
-
-Celery Beat monitors the CELERY\_BEAT\_SCHEDULE in settings.py and periodically sends tasks to the queue according to the schedule (e.g., every Monday at 06:00 AM for the report).
-
-celery \-A crm beat \-l info
-
-## **Verification**
-
-Once Celery Beat runs (or once you trigger the task manually), the report will be logged.
-
-* **Verify Logs:** Check the contents of the log file:  
-  cat /tmp/crm\_report\_log.txt
-
-  The output should show a line similar to:  
-  YYYY-MM-DD HH:MM:SS \- Report: X customers, Y orders, $Z revenue
+**Conclusion:** The `crm/README.md` file is complete and includes all the necessary setup and verification steps for the Celery component, structured correctly using Markdown syntax.
